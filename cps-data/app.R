@@ -52,6 +52,22 @@ cps_hispanic <- cps_sorted |>
 cps_white <- cps_sorted |> 
   filter(primary_race == "white")
 
+# Define the UI for the Shiny app
+ui <- fluidPage(
+  titlePanel("Percentage of Students Meeting ELA Levels By Race Over Time"),
+  
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("race_selector", "Select Race", choices = unique(pandemic_scores_race$primary_race))
+    ),
+    
+    mainPanel(
+      plotOutput("ela_plot")
+    )
+  )
+)
+
+# Define the UI for the Shiny app
 ui <- fluidPage(
   titlePanel("Percentage of Students Meeting ELA Levels By Race Over Time"),
   
@@ -69,20 +85,22 @@ ui <- fluidPage(
 # Define the server logic
 server <- function(input, output) {
   
-  # Function to generate the plot based on the selected race
+  # Function to generate the bar plot based on the selected race
   generate_plot <- reactive({
     race_data <- subset(pandemic_scores_race, primary_race == input$race_selector)
     
-    ggplot(race_data, aes(x = as.factor(year), y = avg_met_ela)) +
-      geom_point() +
-      geom_line(aes(group = primary_race)) +
+    ggplot(race_data, aes(x = as.factor(year), y = avg_met_ela, fill = as.factor(year))) +
+      geom_bar(stat = "identity", position = "dodge") +
       labs(title = "Percentage of Students Meeting ELA Levels Over Time",
            x = "Year",
-           y = "Average % Met ELA Levels") +
-      theme_minimal() 
+           y = "Average % Met ELA Levels",
+           fill = "Year") +
+      scale_fill_brewer(palette = "Set2") +
+      theme_minimal() +
+      theme(legend.position = "bottom")
   })
   
-  # Output the plot
+  # Output the bar plot
   output$ela_plot <- renderPlot({
     generate_plot()
   })

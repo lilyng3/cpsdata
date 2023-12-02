@@ -1,51 +1,92 @@
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
 
 library(shiny)
+library(tidyverse)
+library(ggthemes)
 
-# Define UI for application that draws a histogram
+# read data
+cps <- read_rds("data/cps_data.rds")
+
+# by race
+racial_groups <- c("student_count_black", "student_count_hispanic", "student_count_white", "student_count_asian", "student_count_native_american", "student_count_other_ethnicity","student_count_asian_pacific_islander", "student_count_multi", "student_count_hawaiian_pacific_islander", "student_count_ethnicity_not_available")
+
+# by ela score
+ela_score <- c("percent_did_not_meet_ela", "percent_partially_met_ela", "percent_approached_ela", "percent_met_ela", "percent_exceeded_ela", "percent_met_or_exceeded_ela")
+
+# by math score
+math_score <- c("percent_did_not_meet_math", "percent_partially_met_math", "percent_approached_math", "percent_met_math", "percent_exceeded_math", "percent_met_or_exceeded_math")
+
+cps_sorted <- cps |> 
+  mutate(
+    primary_race = apply(cps[, racial_groups], 1, function(row) {
+      names(row)[which.max(row)]}),
+    primary_ela = names(cps[, ela_score])[max.col(cps[, ela_score], "last")],
+    primary_math = names(cps[, math_score])[max.col(cps[, math_score], "last")]
+  ) |> 
+  mutate(primary_race = sub("student_count_", "", primary_race),
+         percent_low_income = round((student_count_low_income / student_count_total) * 100, 1)) |>
+  filter(school_name != "U OF C - WOODLAWN HS")
+
+cps_sorted <- cps_sorted |> 
+  mutate(
+    primary_race = factor(primary_race),
+    primary_ela = factor(primary_ela),
+    primary_math = factor(primary_math)
+  )
+
+pandemic_scores_race <- cps_sorted |> 
+  group_by(year, primary_race) |> 
+  summarise(
+    avg_met_ela = mean(percent_met_ela, na.rm = TRUE),
+    avg_met_math = mean(percent_met_math, na.rm = TRUE)
+  )
+
+cps_asian <- cps_sorted |> 
+  filter(primary_race == "asian")
+
+cps_black <- cps_sorted |> 
+  filter(primary_race == "black")
+
+cps_hispanic <- cps_sorted |> 
+  filter(primary_race == "hispanic")
+
+cps_white <- cps_sorted |> 
+  filter(primary_race == "white")
+
 ui <- fluidPage(
-
-    # Application title
-    titlePanel("Old Faithful Geyser Data"),
-
-    # Sidebar with a slider input for number of bins 
-    sidebarLayout(
-        sidebarPanel(
-            sliderInput("bins",
-                        "Number of bins:",
-                        min = 1,
-                        max = 50,
-                        value = 30)
-        ),
-
-        # Show a plot of the generated distribution
-        mainPanel(
-           plotOutput("distPlot")
-        )
+  titlePanel("Percentage of Students Meeting ELA Levels By Race Over Time"),
+  
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("race_selector", "Select Race", choices = unique(pandemic_scores_race$primary_race))
+    ),
+    
+    mainPanel(
+      plotOutput("ela_plot")
     )
+  )
 )
 
-# Define server logic required to draw a histogram
+# Define the server logic
 server <- function(input, output) {
-
-    output$distPlot <- renderPlot({
-        # generate bins based on input$bins from ui.R
-        x    <- faithful[, 2]
-        bins <- seq(min(x), max(x), length.out = input$bins + 1)
-
-        # draw the histogram with the specified number of bins
-        hist(x, breaks = bins, col = 'darkgray', border = 'white',
-             xlab = 'Waiting time to next eruption (in mins)',
-             main = 'Histogram of waiting times')
-    })
+  
+  # Function to generate the plot based on the selected race
+  generate_plot <- reactive({
+    race_data <- subset(pandemic_scores_race, primary_race == input$race_selector)
+    
+    ggplot(race_data, aes(x = as.factor(year), y = avg_met_ela)) +
+      geom_point() +
+      geom_line(aes(group = primary_race)) +
+      labs(title = "Percentage of Students Meeting ELA Levels Over Time",
+           x = "Year",
+           y = "Average % Met ELA Levels") +
+      theme_minimal() 
+  })
+  
+  # Output the plot
+  output$ela_plot <- renderPlot({
+    generate_plot()
+  })
 }
 
-# Run the application 
-shinyApp(ui = ui, server = server)
+# Run the Shiny app
+shinyApp(ui, server)

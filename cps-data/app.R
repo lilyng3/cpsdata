@@ -60,16 +60,20 @@ cps_white <- cps_sorted |>
 
 # Define the UI for the Shiny app
 ui <- fluidPage(
-  titlePanel("Chicago Public Schools: Exploring ELA and Math Scores by Primary Racial Makeup of Schools across Time"),
+  titlePanel("Chicago Public Schools: Exploring ELA and Math Scores by Majority Racial Makeup of Schools across Time"),
   
   sidebarLayout(
-    sidebarPanel(
-      selectInput("race_selector", "Select Primary Racial Makeup", choices = c("Asian", "Black", "Hispanic", "White"), selected = "Asian"),
-      radioButtons("subject_selector", "Select Subject", choices = c("ELA", "Math"), selected = "ELA")
-    ),
-    
     mainPanel(
       plotOutput("score_plot")
+    ),
+    
+    sidebarPanel(
+      helpText("This app takes the English Language Arts (ELA) and Math scores from 3rd - 8th graders in Chicago. Beyond test subject, the data is also examined through majority racial group of each school. The visualization also separates pre and post pandemic years."),
+
+      selectInput("race_selector", "Select Majority Racial Makeup", choices = c("Asian", "Black", "Hispanic", "White"), selected = "Asian"),
+      radioButtons("subject_selector", "Select Subject", choices = c("ELA", "Math"), selected = "ELA"),
+      
+      tags$p("Data Source: City of Chicago")
     )
   )
 )

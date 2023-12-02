@@ -1,11 +1,13 @@
 
+# read packages and data --------------------------------------------------
 library(shiny)
 library(tidyverse)
 library(ggthemes)
 
-# read data
 cps <- read_rds("data/cps_data.rds")
 
+
+# data manipulation -------------------------------------------------------
 # by race
 racial_groups <- c("student_count_black", "student_count_hispanic", "student_count_white", "student_count_asian", "student_count_native_american", "student_count_other_ethnicity","student_count_asian_pacific_islander", "student_count_multi", "student_count_hawaiian_pacific_islander", "student_count_ethnicity_not_available")
 
@@ -24,6 +26,7 @@ cps_sorted <- cps |>
   ) |> 
   mutate(primary_race = sub("student_count_", "", primary_race),
          percent_low_income = round((student_count_low_income / student_count_total) * 100, 1)) |>
+  # omitted due to NA values for ELA in one year, chose to remove whole school for continuity
   filter(school_name != "U OF C - WOODLAWN HS")
 
 cps_sorted <- cps_sorted |> 
@@ -52,32 +55,21 @@ cps_hispanic <- cps_sorted |>
 cps_white <- cps_sorted |> 
   filter(primary_race == "white")
 
-# Define the UI for the Shiny app
-ui <- fluidPage(
-  titlePanel("Percentage of Students Meeting ELA Levels By Race Over Time"),
-  
-  sidebarLayout(
-    sidebarPanel(
-      selectInput("race_selector", "Select Race", choices = unique(pandemic_scores_race$primary_race))
-    ),
-    
-    mainPanel(
-      plotOutput("ela_plot")
-    )
-  )
-)
+
+# shiny app ---------------------------------------------------------------
 
 # Define the UI for the Shiny app
 ui <- fluidPage(
-  titlePanel("Percentage of Students Meeting ELA Levels By Race Over Time"),
+  titlePanel("Chicago Public Schools: Exploring ELA and Math Scores by Primary Racial Makeup of Schools across Time"),
   
   sidebarLayout(
     sidebarPanel(
-      selectInput("race_selector", "Select Race", choices = unique(pandemic_scores_race$primary_race))
+      selectInput("race_selector", "Select Primary Racial Makeup", choices = c("Asian", "Black", "Hispanic", "White"), selected = "Asian"),
+      radioButtons("subject_selector", "Select Subject", choices = c("ELA", "Math"), selected = "ELA")
     ),
     
     mainPanel(
-      plotOutput("ela_plot")
+      plotOutput("score_plot")
     )
   )
 )
@@ -85,23 +77,29 @@ ui <- fluidPage(
 # Define the server logic
 server <- function(input, output) {
   
-  # Function to generate the bar plot based on the selected race
+  # Function to generate the bar plot based on the selected race and subject
   generate_plot <- reactive({
-    race_data <- subset(pandemic_scores_race, primary_race == input$race_selector)
+    race_data <- subset(pandemic_scores_race, primary_race == tolower(input$race_selector))
     
-    ggplot(race_data, aes(x = as.factor(year), y = avg_met_ela, fill = as.factor(year))) +
+    y_variable <- ifelse(input$subject_selector == "ELA", "avg_met_ela", "avg_met_math")
+    y_label <- ifelse(input$subject_selector == "ELA", "Average % Met ELA Standards", "Average % Met Math Standards")
+    title <- paste("Percentage of Students In Majority", input$race_selector, "Schools Meeting", input$subject_selector, "Standards Over Time")
+    
+    custom_colors <- c("#556EE6", "#778BEB", "#F78FB3", "#F8A5C2")  # Specify your custom colors here
+    
+    ggplot(race_data, aes(x = as.factor(year), y = !!sym(y_variable), fill = as.factor(year))) +
       geom_bar(stat = "identity", position = "dodge") +
-      labs(title = "Percentage of Students Meeting ELA Levels Over Time",
+      labs(title = title,
            x = "Year",
-           y = "Average % Met ELA Levels",
+           y = y_label,
            fill = "Year") +
-      scale_fill_brewer(palette = "Set2") +
+      scale_fill_manual(values = custom_colors) +
       theme_minimal() +
       theme(legend.position = "bottom")
   })
   
   # Output the bar plot
-  output$ela_plot <- renderPlot({
+  output$score_plot <- renderPlot({
     generate_plot()
   })
 }

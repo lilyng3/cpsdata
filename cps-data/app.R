@@ -1,4 +1,3 @@
-
 # read packages and data --------------------------------------------------
 library(shiny)
 library(tidyverse)
@@ -43,6 +42,16 @@ pandemic_scores_race <- cps_sorted |>
     avg_met_math = mean(percent_met_math, na.rm = TRUE)
   )
 
+cps_lowincome <- cps_sorted |> 
+  filter(percent_low_income >= 40)
+
+pandemic_scores_race_lowincome <- cps_lowincome |> 
+  group_by(year, primary_race) |> 
+  summarise(
+    avg_met_ela = mean(percent_met_ela, na.rm = TRUE),
+    avg_met_math = mean(percent_met_math, na.rm = TRUE)
+  )
+
 cps_asian <- cps_sorted |> 
   filter(primary_race == "asian")
 
@@ -64,14 +73,17 @@ ui <- fluidPage(
   
   sidebarLayout(
     mainPanel(
-      plotOutput("score_plot")
+      plotOutput("score_plot"),
+      plotOutput("low_income_plot")
     ),
     
     sidebarPanel(
-      helpText("This app takes the English Language Arts (ELA) and Math scores from 3rd - 8th graders in Chicago. Beyond test subject, the data is also examined through majority racial group of each school. The visualization also separates pre and post pandemic years."),
-
+      helpText("This app takes the English Language Arts (ELA) and Math scores from 3rd - 8th graders in Chicago. Beyond test subject, the data is also examined through the majority racial group of each school. The visualization also separates pre and post-pandemic years."),
+      
       selectInput("race_selector", "Select Majority Racial Makeup", choices = c("Asian", "Black", "Hispanic", "White"), selected = "Asian"),
       radioButtons("subject_selector", "Select Subject", choices = c("ELA", "Math"), selected = "ELA"),
+      
+      checkboxInput("low_income_selector", "Include Low Income Data", value = FALSE),
       
       tags$p("Data Source: City of Chicago")
     )
@@ -81,7 +93,7 @@ ui <- fluidPage(
 # Define the server logic
 server <- function(input, output) {
   
-  # Function to generate the bar plot based on the selected race and subject
+  # function to generate the bar plot based on the selected race and subject
   generate_plot <- reactive({
     race_data <- subset(pandemic_scores_race, primary_race == tolower(input$race_selector))
     
@@ -89,7 +101,7 @@ server <- function(input, output) {
     y_label <- ifelse(input$subject_selector == "ELA", "Average % Met ELA Standards", "Average % Met Math Standards")
     title <- paste("Percentage of Students In Majority", input$race_selector, "Schools Meeting", input$subject_selector, "Standards Over Time")
     
-    custom_colors <- c("#556EE6", "#778BEB", "#F78FB3", "#F8A5C2")  # Specify your custom colors here
+    custom_colors <- c("#556EE6", "#778BEB", "#F78FB3", "#F8A5C2")  
     
     ggplot(race_data, aes(x = as.factor(year), y = !!sym(y_variable), fill = as.factor(year))) +
       geom_bar(stat = "identity", position = "dodge") +
@@ -98,13 +110,46 @@ server <- function(input, output) {
            y = y_label,
            fill = "Year") +
       scale_fill_manual(values = custom_colors) +
+      # set y-axis limits to make visual comparison better
+      scale_y_continuous(limits = c(0, 50)) +  
       theme_minimal() +
       theme(legend.position = "bottom")
   })
   
-  # Output the bar plot
+  # function to make the low-income subset plot
+  generate_low_income_plot <- reactive({
+    if (input$low_income_selector) {
+      race_lowincome_data <- subset(pandemic_scores_race_lowincome, primary_race == tolower(input$race_selector))
+      
+      y_variable <- ifelse(input$subject_selector == "ELA", "avg_met_ela", "avg_met_math")
+      y_label <- ifelse(input$subject_selector == "ELA", "Average % Met ELA Standards", "Average % Met Math Standards")
+      title <- paste("Percentage of Low-Income Students In Majority", input$race_selector, "Schools Meeting", input$subject_selector, "Standards Over Time")
+      
+      custom_colors <- c("#556EE6", "#778BEB", "#F78FB3", "#F8A5C2") 
+      
+      ggplot(race_lowincome_data, aes(x = as.factor(year), y = !!sym(y_variable), fill = as.factor(year))) +
+        geom_bar(stat = "identity", position = "dodge") +
+        labs(title = title,
+             x = "Year",
+             y = y_label,
+             fill = "Year") +
+        scale_fill_manual(values = custom_colors) +
+        scale_y_continuous(limits = c(0, 50)) +  # Set y-axis limits
+        theme_minimal() +
+        theme(legend.position = "bottom")
+    } else {
+      NULL
+    }
+  })
+  
+  # average of all scores plot
   output$score_plot <- renderPlot({
     generate_plot()
+  })
+  
+  # average of low-income scores plot
+  output$low_income_plot <- renderPlot({
+    generate_low_income_plot()
   })
 }
 

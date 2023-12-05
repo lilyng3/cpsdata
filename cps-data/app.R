@@ -51,7 +51,7 @@ pandemic_scores_race_lowincome <- cps_sorted |>
 
 # Define the UI for the Shiny app
 ui <- fluidPage(
-  titlePanel("Chicago Public Schools: Exploring ELA and Math Scores by Majority Racial Makeup of Schools across Time"),
+  titlePanel("Chicago Public Schools: Exploring ELA and Math Scores"),
   
   sidebarLayout(
     mainPanel(
@@ -77,26 +77,24 @@ ui <- fluidPage(
 # Define the server logic
 server <- function(input, output) {
   
-  # function to generate the line plot based on the selected race and subject
   generate_plot <- reactive({
     if (input$all_data_selector) {
-      # Use all data
       data <- pandemic_scores_race
       low_income_data <- pandemic_scores_race_lowincome
       
-      # Title when 'all_data_selector' is checked
       title <- paste("Percentage of Students By Majority Race of School Meeting", input$subject_selector, "Standards Over Time")
     } else {
-      # Use selected race data
       data <- subset(pandemic_scores_race, primary_race == tolower(input$race_selector))
       low_income_data <- subset(pandemic_scores_race_lowincome, primary_race == tolower(input$race_selector))
       
-      # Title when 'all_data_selector' is not checked
       title <- paste("Percentage of Students In Majority", input$race_selector, "Schools Meeting", input$subject_selector, "Standards Over Time")
     }
     
     y_variable <- ifelse(input$subject_selector == "ELA", "avg_met_ela", "avg_met_math")
     y_label <- ifelse(input$subject_selector == "ELA", "Average % Met ELA Standards", "Average % Met Math Standards")
+    
+    # Define custom colors for each race
+    race_colors <- c("asian" = "#F8766D", "black" = "#7CAF00", "hispanic" = "#06BFC4", "white" = "#C67BFF")
     
     plot <- ggplot(data, aes(x = as.factor(year), y = !!sym(y_variable), color = primary_race, group = primary_race)) +
       geom_point() +
@@ -107,7 +105,8 @@ server <- function(input, output) {
            color = "Primary Race") +
       theme_minimal() +
       ylim(0, 50) +
-      theme(legend.position = "bottom")
+      theme(legend.position = "bottom") +
+      scale_color_manual(values = race_colors)
     
     if (input$low_income_selector) {
       plot <- plot +
@@ -118,12 +117,9 @@ server <- function(input, output) {
     return(plot)
   })
   
-  # line plot for average of all scores
   output$score_plot <- renderPlot({
     generate_plot()
   })
-  
-  # ...
   
 }
 

@@ -60,7 +60,8 @@ ui <- fluidPage(
     ),
     
     sidebarPanel(
-      helpText("This app takes the English Language Arts (ELA) and Math scores from 3rd - 8th graders in Chicago. Beyond test subject, the data is also examined through the majority racial group of each school. The visualization also separates pre and post-pandemic years."),
+      helpText("This app takes the English Language Arts (ELA) and Math scores from 3rd - 8th graders in Chicago. Beyond test subject, the data is also examined through the majority racial group of each school. The visualization also provides insight into pre (2018, 2019) and post (2022, 2023) pandemic years. Users can also examine the impact income level has on test scores, as well as compare all the data across identity factors in one plot."),
+      helpText("Dashed lines connote data from low-income schools only."),
       
       selectInput("race_selector", "Select Majority Racial Makeup", choices = c("Asian", "Black", "Hispanic", "White"), selected = "Asian"),
       radioButtons("subject_selector", "Select Subject", choices = c("ELA", "Math"), selected = "ELA"),
@@ -82,15 +83,20 @@ server <- function(input, output) {
       # Use all data
       data <- pandemic_scores_race
       low_income_data <- pandemic_scores_race_lowincome
+      
+      # Title when 'all_data_selector' is checked
+      title <- paste("Percentage of Students By Majority Race of School Meeting", input$subject_selector, "Standards Over Time")
     } else {
       # Use selected race data
       data <- subset(pandemic_scores_race, primary_race == tolower(input$race_selector))
       low_income_data <- subset(pandemic_scores_race_lowincome, primary_race == tolower(input$race_selector))
+      
+      # Title when 'all_data_selector' is not checked
+      title <- paste("Percentage of Students In Majority", input$race_selector, "Schools Meeting", input$subject_selector, "Standards Over Time")
     }
     
     y_variable <- ifelse(input$subject_selector == "ELA", "avg_met_ela", "avg_met_math")
     y_label <- ifelse(input$subject_selector == "ELA", "Average % Met ELA Standards", "Average % Met Math Standards")
-    title <- paste("Percentage of Students In Majority", input$race_selector, "Schools Meeting", input$subject_selector, "Standards Over Time")
     
     plot <- ggplot(data, aes(x = as.factor(year), y = !!sym(y_variable), color = primary_race, group = primary_race)) +
       geom_point() +

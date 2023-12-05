@@ -1,0 +1,12 @@
+name: cps-data
+title: cps-data
+username: lilyng
+account: lilyng
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 10725776
+bundleId: 8011571
+url: https://lilyng.shinyapps.io/cps-data/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
